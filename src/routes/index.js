@@ -56,6 +56,9 @@ let mailGenerator = new Mailgen({
 });
 
 
+router.get('/', async (req, res) => {
+  return res.json({ saldo: "1", nombre: "", promo: "off" })
+});
 // RUTAS DE LA APLICACION 
 router.post('/saldo', async (req, res) => {
   const { id, profile } = req.body
