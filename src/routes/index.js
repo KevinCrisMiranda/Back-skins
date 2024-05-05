@@ -67,7 +67,7 @@ router.post('/saldo', async (req, res) => {
 
     if (err) {
       console.log("error")
-      return res.json({ saldo: "1", nombre: "", promo: "off" })
+      return res.json({ saldo: "0.00", nombre: "", promo: "off" })
     }
 
 
@@ -75,7 +75,7 @@ router.post('/saldo', async (req, res) => {
     if (result.length <= 0) {
       pool.query('INSERT INTO usuario (userId,name_id,saldo,url,code,estado,prom,apostado,depositado,oferta,sesion) VALUES ("' + id + '","' + profile + '",' + 0.00 + ',"","",0,"off",' + 0 + ',' + 0 + ' ,"off","' + nombre + '")', (err, result) => {
         if (err) {
-          return res.json({ saldo: "2", nombre: "", promo: "off" })
+          return res.json({ saldo: "0.00", nombre: "", promo: "off" })
         }
       });
       return res.json({ saldo: "0.00", nombre: nombre, promo: "off" })
@@ -189,7 +189,7 @@ router.post('/v1/api/ecu/inventario-bot', verifyToken, async (req, res) => {
     });
 
     const userInventory = await new Promise((resolve, reject) => {
-      manager.getUserInventoryContents('76561198169833435', 570, 2, true, (err, inventory) => {
+      manager.getUserInventoryContents(process.env.BOTIDS2, 570, 2, true, (err, inventory) => {
         if (err) {
           console.log(err);
           reject(err);
