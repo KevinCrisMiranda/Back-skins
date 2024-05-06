@@ -423,6 +423,7 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
           html: htmlEmail,
         };
         transporter.sendMail(mailOptions, function (error, info) {
+          console.log(error)
           if(error) console.log('Error al Enviar mensaje')
         })
 
