@@ -429,7 +429,7 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
       }
       res.json({ message: 'Oferta enviada', estado: 'success' });
     } else {
-      let errorMessage = 'Error al enviar oferta';
+      let errorMessage = 'Error al enviar oferta 1';
       if (responseBot && responseBot.data.message) {
         errorMessage = responseBot.data.message;
       } else if (responseRamses && responseRamses.data.message) {
@@ -438,7 +438,8 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
       res.json({ message: errorMessage, estado: 'error' });
     }
   } catch (error) {
-    res.json({ message: 'Error al enviar oferta', estado: 'error' })
+    console.log(error)
+    res.json({ message: 'Error al enviar oferta 2', estado: 'error' })
   }
 
 })
