@@ -39,6 +39,9 @@ const userDataNull = {
 // EMAIL DATOS DE NODEMAILER 
 let transporter = nodemailer.createTransport({
   service: 'gmail',
+  host: '38.180.114.226', // Dirección IP pública de tu servidor SMTP
+    port: 587, // Puerto SMTP (587 es común para STARTTLS)
+    secure: false,
   auth: {
       user: process.env.EMAILBOT, // Tu correo electrónico
       pass: process.env.PASSBOT, // Tu contraseña
