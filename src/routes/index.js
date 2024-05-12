@@ -36,15 +36,11 @@ const userDataNull = {
   tema: 'light'
 }
 
-// EMAIL DATOS DE NODEMAILER 
 let transporter = nodemailer.createTransport({
   service: 'gmail',
-  host: '38.180.114.226', // Dirección IP pública de tu servidor SMTP
-    port: 587, // Puerto SMTP (587 es común para STARTTLS)
-    secure: false,
   auth: {
-      user: process.env.EMAILBOT, // Tu correo electrónico
-      pass: process.env.PASSBOT, // Tu contraseña
+    user: process.env.EMAILBOT, // Tu correo electrónico de Gmail
+    pass: process.env.PASSBOT, // Tu contraseña de Gmail
   }
 });
 
@@ -427,7 +423,11 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
         };
         transporter.sendMail(mailOptions, function (error, info) {
           console.log(error)
-          if(error) console.log('Error al Enviar mensaje')
+          if(error) {
+            console.log('Error al Enviar mensaje')
+            res.json({ message: 'Error el enviar oferta', estado: 'error' });
+          
+          }
         })
 
       }
