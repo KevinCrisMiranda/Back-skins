@@ -584,6 +584,7 @@ router.post('/v1/api/ecu/retiro-banco', verifyToken, async (req, res) => {
         })
       })
       .catch((error) => {
+        console.log(error)
         return res.json({ 
           message: "Problema con el servidor al contactar con el metodo de pago", 
           estado: "error", 
