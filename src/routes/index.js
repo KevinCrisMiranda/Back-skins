@@ -16,6 +16,8 @@ const nodemailer = require('nodemailer');
 const encontrarCoincidencias = require('../function/coincidencias');
 require("dotenv").config()
 const jwt = require('jsonwebtoken');
+const sgMail = require('@sendgrid/mail')
+sgMail.setApiKey(process.env.PASSMAIL)
 
 const manager = new TradeOfferManager({
   "domain": "localhost:4000", //your domain API KEY
@@ -398,40 +400,59 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
     if ((responseBot && responseBot.data.estado === 'success') || (responseRamses && responseRamses.data.estado === 'success')) {
       if (responseRamses) {
         const dataMessageItems = responseRamses.data.getItems.map(item => ({
-         item: item?.market_hash_name,
-         assetid: item?.assetid
+          item: item?.market_hash_name,
+          assetid: item?.assetid
         }));
-        //DATA PLANTILLA 
-        let emailResponse = {
-          body: {
-            name: 'Kevin Miranda',
-            intro: `Intercambio <a href="${saldoUser[0].url}" target="_system">Enlace Intercambio</a>`,
-            greeting: 'Hola',
-            signature: 'Coordialmente',
-            table: {
-              data: dataMessageItems
-            },
-            outro: 'Ecua Skins llevando la plataforma de items Dota 2 al siguiente nivel.'
+        // Crear las filas de la tabla
+        const tableRows = dataMessageItems.map(item => `
+          <tr>
+            <td>${item.item}</td>
+            <td>${item.assetid}</td>
+          </tr>
+        `).join('');
+
+        // Crear la tabla completa
+        const htmlTable = `
+            <table border="1" cellpadding="5" cellspacing="0">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Asset ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tableRows}
+              </tbody>
+            </table>
+        `;
+
+          const msg = {
+            to: process.env.EMAIL, // Change to your recipient
+            from: process.env.EMAILBOT, // Change to your verified sender
+            subject: `Intercambio steam ${responseRamses?.data.id}`,
+            text: 'Nuevo envio steam',
+            html: `
+                <div>
+                <strong>Intercambio <a href="${saldoUser[0].url}" target="_system">Enlace Intercambio</a></strong>
+                <br>
+                <br>
+                <div>
+                ${htmlTable}
+                </>
+                </div>
+            `,
           }
-        };
-        let htmlEmail = mailGenerator.generate(emailResponse);
-        let mailOptions = {
-          from: process.env.EMAILBOT,
-          to: process.env.EMAIL,
-          subject: `Intercambio steam ${responseRamses?.data.id}`,
-          html: htmlEmail,
-        };
-        transporter.sendMail(mailOptions, function (error, info) {
-          console.log(error)
-          if(error) {
-            console.log('Error al Enviar mensaje')
-            res.json({ message: 'Error el enviar oferta', estado: 'error' });
-          
-          }
-        })
+          sgMail
+          .send(msg)
+          .then(() => {
+            res.json({ message: 'Oferta enviada', estado: 'success' });
+
+          })
+          .catch((error) => {
+             res.json({ message: 'Error al enviar oferta usuario trade', estado: 'error' })
+          })
 
       }
-      res.json({ message: 'Oferta enviada', estado: 'success' });
     } else {
       let errorMessage = 'Error al enviar oferta 1';
       if (responseBot && responseBot.data.message) {
@@ -443,7 +464,7 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
     }
   } catch (error) {
     console.log(error)
-    res.json({ message: 'Error al enviar oferta 2', estado: 'error' })
+    res.json({ message: 'Error al enviar oferta ', estado: 'error' })
   }
 
 })
@@ -489,73 +510,88 @@ router.post('/v1/api/ecu/retiro-banco', verifyToken, async (req, res) => {
       let newSaldo = result[0]?.saldo - valor;
       newSaldo = newSaldo.toFixed(2);
       //DATA PLANTILLA 
-      let emailResponse = {
-        body: {
-          name: 'Kevin Miranda',
-          intro: `Retiro de la plataforma ${plataforma}`,
-          greeting: 'Hola',
-          signature: 'Coordialmente',
-          table: {
-            data: [
-              {
-                item: 'Retiro',
-                description: plataforma,
-                price: `$${valor}`,
-              }
-            ]
-          },
-          outro: 'Ecua Skins llevando la plataforma de items Dota 2 al siguiente nivel.'
-        }
-      };
+
 
       const resultNewId = await pool2.query('SELECT MAX(idOfer) + 1 AS nuevo_id FROM ofertas');
-      let htmlEmail = mailGenerator.generate(emailResponse);
-      let mailOptions = {
-        from: process.env.EMAILBOT,
-        to: process.env.EMAIL,
-        subject: `Retiro de la plataforma ${plataforma} Id:${resultNewId[0]?.nuevo_id}`,
-        html: htmlEmail,
-      };
+  
 
-      // funcion de enviar email 
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.log(error)
-          return res.json({ 
-            message: "Problema con el servidor al contactar con el metodo de pago", 
-            estado: "error", 
-            subTitle:"Error de servidor al intentar contactar el método de pago, intentalo más tarde." 
-          })
-        } else {
 
-          pool2.query("UPDATE usuarios Set saldo=? WHERE steamid=?", [newSaldo, id], (err, result) => {
-            if (err) {
-              return res.json({
-                message: 'Error al actualizar saldo de retiro', 
-                estado: 'error',
-                subTitle:"Error por parte del servidor al intentar actualizar tu saldo actual, intentalo más tarde." 
-              });
-            }
+    // Crear la tabla completa
+    const htmlTable = `
+        <table border="1" cellpadding="5" cellspacing="0">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>description</th>
+              <th>price</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+          <tr>
+          <td>Retiro</td>
+          <td>${plataforma}</td>
+          <td>${valor}</td>
 
-            pool2.query('INSERT INTO ofertas (`id`,`tipo`, `userId`, `costo`, `estado`, `plataforma`, idCuenta) VALUES (" ","retiro","' + id + '","' + valor + '","Pendiente", "' + plataforma + '", "' + idOffer + '")', (err) => {
-              if (err) {
-                console.log(err)
-                return res.json({ 
-                  message: "Problema con el servidor al retirar", 
-                  estado: "error",
-                  subTitle:"Error por parte delservidor al retirar tu saldo, intentalo más tarde." 
-                })
-              }
-              return res.json({
-                 message: `Retiro exitoso`, 
-                 estado: "success", 
-                 subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado." });
+        </tr>
+          </tbody>
+        </table>
+    `;
+      const msg = {
+        to: process.env.EMAIL, // Change to your recipient
+        from: process.env.EMAILBOT, // Change to your verified sender
+        subject: `Retiro de la plataforma ${plataforma} ${resultNewId[0]?.nuevo_id}`,
+        text: 'Nuevo Retiro',
+        html: `
+            <div>
+            <strong>Retiro de la plataforma ${plataforma} Id:${resultNewId[0]?.nuevo_id}</strong>
+            <br>
+            <br>
+            <div>
+            ${htmlTable}
+            </>
+            </div>
+        `,
+      }
+
+      sgMail
+      .send(msg)
+      .then(() => {
+        pool2.query("UPDATE usuarios Set saldo=? WHERE steamid=?", [newSaldo, id], (err, result) => {
+          if (err) {
+            return res.json({
+              message: 'Error al actualizar saldo de retiro', 
+              estado: 'error',
+              subTitle:"Error por parte del servidor al intentar actualizar tu saldo actual, intentalo más tarde." 
             });
+          }
 
-          }) 
-        }
+          pool2.query('INSERT INTO ofertas (`id`,`tipo`, `userId`, `costo`, `estado`, `plataforma`, idCuenta) VALUES (" ","retiro","' + id + '","' + valor + '","Pendiente", "' + plataforma + '", "' + idOffer + '")', (err) => {
+            if (err) {
+              console.log(err)
+              return res.json({ 
+                message: "Problema con el servidor al retirar", 
+                estado: "error",
+                subTitle:"Error por parte delservidor al retirar tu saldo, intentalo más tarde." 
+              })
+            }
+            return res.json({
+               message: `Retiro exitoso`, 
+               estado: "success", 
+               subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado." });
+          });
 
-      });
+        })
+      })
+      .catch((error) => {
+        return res.json({ 
+          message: "Problema con el servidor al contactar con el metodo de pago", 
+          estado: "error", 
+          subTitle:"Error de servidor al intentar contactar el método de pago, intentalo más tarde." 
+        })
+      })
+
+   
       
     } else {
       return res.json({ 
@@ -566,6 +602,8 @@ router.post('/v1/api/ecu/retiro-banco', verifyToken, async (req, res) => {
     }
 
   } catch (error) {
+    console.log(error)
+
     return res.json({ 
       message: 'Error al retirar', 
       estado: 'error',
@@ -578,65 +616,81 @@ router.post('/v1/api/ecu/deposito-banco', verifyToken, async (req, res) => {
   const { id, valor, idOffer, plataforma } = req.body;
   try {
       //DATA PLANTILLA 
-      let emailResponse = {
-        body: {
-          name: 'Kevin Miranda',
-          intro: `Deposito de la plataforma ${plataforma}`,
-          greeting: 'Hola',
-          signature: 'Coordialmente',
-          table: {
-            data: [
-              {
-                item: 'Deposito',
-                description: plataforma,
-                price: `$${valor}`,
-              }
-            ]
-          },
-          outro: 'Ecua Skins llevando la plataforma de items Dota 2 al siguiente nivel.'
-        }
-      };
+  
 
       const resultNewId = await pool2.query('SELECT MAX(idOfer) + 1 AS nuevo_id FROM ofertas');
-      let htmlEmail = mailGenerator.generate(emailResponse);
-      let mailOptions = {
-        from: process.env.EMAILBOT,
-        to: process.env.EMAIL,
+
+
+      const htmlTable = `
+        <table border="1" cellpadding="5" cellspacing="0">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>description</th>
+              <th>price</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+          <tr>
+          <td>Deposito</td>
+          <td>${plataforma}</td>
+          <td>${valor}</td>
+
+        </tr>
+          </tbody>
+        </table>
+    `;
+
+      const msg = {
+        to: process.env.EMAIL, // Change to your recipient
+        from: process.env.EMAILBOT, // Change to your verified sender
         subject: `Deposito de la plataforma ${plataforma} Id:${resultNewId[0]?.nuevo_id}`,
-        html: htmlEmail,
-      };
-
-      // funcion de enviar email 
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.log(error)
-          return res.json({ 
-            message: "Problema con el servidor al contactar con el metodo de pago", 
-            estado: "error", 
-            subTitle:"Error de servidor al intentar contactar el método de pago, intentalo más tarde." 
-          })
-        } else {
-            pool2.query('INSERT INTO ofertas (`id`,`tipo`, `userId`, `costo`, `estado`, `plataforma`, idCuenta) VALUES (" ","deposito","' + id + '","' + valor + '","Pendiente", "' + plataforma + '", "' + idOffer + '")', (err) => {
-              if (err) {
-                console.log(err)
-                return res.json({ 
-                  message: "Problema con el servidor al retirar", 
-                  estado: "error",
-                  subTitle:"Error por parte delservidor al retirar tu saldo, intentalo más tarde." 
-                })
-              }
-              return res.json({
-                 message: `Deposito exitoso`, 
-                 estado: "success", 
-                 subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado.",
-                 idOffert: resultNewId[0]?.nuevo_id,
-                });
+        text: 'Nuevo Deposito',
+        html: `
+            <div>
+            <strong>Deposito de la plataforma ${plataforma} Id:${resultNewId[0]?.nuevo_id}</strong>
+            <br>
+            <br>
+            <div>
+            ${htmlTable}
+            </>
+            </div>
+        `,
+      }
+      sgMail
+      .send(msg)
+      .then(() => {
+        pool2.query('INSERT INTO ofertas (`id`,`tipo`, `userId`, `costo`, `estado`, `plataforma`, idCuenta) VALUES (" ","deposito","' + id + '","' + valor + '","Pendiente", "' + plataforma + '", "' + idOffer + '")', (err) => {
+          if (err) {
+            console.log(err)
+            return res.json({ 
+              message: "Problema con el servidor al retirar", 
+              estado: "error",
+              subTitle:"Error por parte delservidor al retirar tu saldo, intentalo más tarde." 
+            })
+          }
+          return res.json({
+             message: `Deposito exitoso`, 
+             estado: "success", 
+             subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado.",
+             idOffert: resultNewId[0]?.nuevo_id,
             });
+        });
+       
+      })
+      .catch((error) => {
+        console.log(error)
+        return res.json({ 
+          message: "Problema con el servidor al contactar con el metodo de pago", 
+          estado: "error", 
+          subTitle:"Error de servidor al intentar contactar el método de pago, intentalo más tarde." 
+        })
+      })
 
-        }
-
-      });
   } catch (error) {
+    console.log(error)
+
     return res.json({ 
       message: 'Error al depositar', 
       estado: 'error',
@@ -650,45 +704,42 @@ router.post('/v1/api/ecu/pay-email-deposit', verifyToken, async (req, res) => {
   try {
       //DATA PLANTILLA 
       const { idOferta } = req.body;
-
-      console.log(idOferta)
-
-      let emailResponse = {
-        body: {
-          name: 'Kevin Miranda',
-          intro: `Deposito de la plataforma pago echo Id:${idOferta}`,
-          greeting: 'Hola',
-          signature: 'Coordialmente',
-          outro: 'Ecua Skins llevando la plataforma de items Dota 2 al siguiente nivel.'
-        }
-      };
-
-      let htmlEmail = mailGenerator.generate(emailResponse);
-      let mailOptions = {
-        from: process.env.EMAILBOT,
-        to: process.env.EMAIL,
+      const msg = {
+        to: process.env.EMAIL, // Change to your recipient
+        from: process.env.EMAILBOT, // Change to your verified sender
         subject: `Deposito pago echo ${idOferta}`,
-        html: htmlEmail,
-      };
+        text: 'Nuevo deposito',
+        html: `
+            <div>
+            <strong>Deposito echo ${idOferta}</strong>
+            <br>
+            <div>
+            <strong>${idOferta}</strong>
+            </div>
+            <br>
+            </div>
+        `,
+      }
+      sgMail
+      .send(msg)
+      .then(() => {
+        return res.json({
+          message: `Deposito exitoso`, 
+          estado: "success", 
+          subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado." 
+       });
 
-      // funcion de enviar email 
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.log(error)
+      })
+      .catch((error) => {
+        console.log(error)
           return res.json({ 
             message: "Problema con el servidor al contactar con el metodo de pago", 
             estado: "error", 
             subTitle:"Error de servidor al intentar contactar el método de pago, intentalo más tarde." 
           })
-        } else {
-              return res.json({
-                 message: `Deposito exitoso`, 
-                 estado: "success", 
-                 subTitle:"La transferencia de fondos puede tardar hasta una hora dependiendo del método de retiro que se haya seleccionado." 
-              });
-        }
+      })
 
-      });
+    
   } catch (error) {
     console.log(error)
     return res.json({ 
@@ -717,6 +768,7 @@ router.post('/v1/api/ecu/deposito-cancel', verifyToken, async (req, res) => {
        });
     })
   } catch (error) {
+    console.log(error)
     return res.json({ 
       message: 'Error al depositar', 
       estado: 'error',
