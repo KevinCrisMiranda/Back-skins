@@ -16,7 +16,7 @@ const nodemailer = require('nodemailer');
 const encontrarCoincidencias = require('../function/coincidencias');
 require("dotenv").config()
 const jwt = require('jsonwebtoken');
-const sgMail = require('@sendgrid/mail')
+const sgMail = require('@sendgrid/mail');
 sgMail.setApiKey()
 
 const manager = new TradeOfferManager({
