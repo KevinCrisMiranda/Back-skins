@@ -29,7 +29,6 @@ const manager = new TradeOfferManager({
 });
 const crypto = require("crypto");
 
-console.log('SendGrid API Key:', process.env.PASSMAIL);
 const userDataNull = {
   steamid: false,
   saldo: '',
