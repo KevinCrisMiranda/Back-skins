@@ -17,7 +17,7 @@ const encontrarCoincidencias = require('../function/coincidencias');
 require("dotenv").config()
 const jwt = require('jsonwebtoken');
 const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey('')
+sgMail.setApiKey()
 
 const manager = new TradeOfferManager({
   "domain": "localhost:4000", //your domain API KEY
