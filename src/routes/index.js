@@ -17,9 +17,7 @@ const encontrarCoincidencias = require('../function/coincidencias');
 require("dotenv").config()
 const jwt = require('jsonwebtoken');
 const sgMail = require('@sendgrid/mail')
-const email = 'SG.c2_BM6T1RJ-AYUkPTzEkwg.m-I'
-const emailer2 = 'SP8iyidxwA9Tkq5L8uPy7Jptx_0AhIULJwc4b_hg'
-sgMail.setApiKey(email+emailer2)
+sgMail.setApiKey('')
 
 const manager = new TradeOfferManager({
   "domain": "localhost:4000", //your domain API KEY
@@ -362,7 +360,8 @@ router.post('/v1/api/ecu/vender', verifyToken, async (req, res) => {
 // COMPRAR BOT INVENTARIO 
 router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
 
-  // const { id } = req.body;
+  //  const { id, selectedItems, token } = req.body;
+
   // const result = await pool2.query('SELECT * FROM lista');
   // const saldoUser = await pool2.query('SELECT saldo, url FROM usuarios WHERE steamid=' + id)
   // const [itemsCoin, getItems] = await encontrarCoincidencias(inventory, selectedItems, result)
@@ -371,7 +370,6 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
   // if (!saldoSuficiente) {
   //   return res.json({ message: 'Saldo Insuficiente', estado: 'error' });
   // }
-  const { id, selectedItems, token } = req.body;
   
     
   try {
@@ -401,11 +399,12 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
 
     if ((responseBot && responseBot.data.estado === 'success') || (responseRamses && responseRamses.data.estado === 'success')) {
       if (responseRamses) {
+
         const dataMessageItems = responseRamses.data.getItems.map(item => ({
           item: item?.market_hash_name,
           assetid: item?.assetid
         }));
-        // Crear las filas de la tabla
+
         const tableRows = dataMessageItems.map(item => `
           <tr>
             <td>${item.item}</td>
@@ -413,7 +412,6 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
           </tr>
         `).join('');
 
-        // Crear la tabla completa
         const htmlTable = `
             <table border="1" cellpadding="5" cellspacing="0">
               <thead>
@@ -428,12 +426,12 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
             </table>
         `;
 
-          const msg = {
-            to: process.env.EMAIL, // Change to your recipient
-            from: process.env.EMAILBOT, // Change to your verified sender
-            subject: `Intercambio steam ${responseRamses?.data.id}`,
-            text: 'Nuevo envio steam',
-            html: `
+        const msg = {
+          to: process.env.EMAIL, 
+          from: process.env.EMAILBOT, 
+          subject: `Intercambio steam ${responseRamses?.data.id}`,
+          text: 'Nuevo envio steam',
+          html: `
                 <div>
                 <strong>Intercambio <a href="${saldoUser[0].url}" target="_system">Enlace Intercambio</a></strong>
                 <br>
@@ -443,20 +441,22 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
                 </>
                 </div>
             `,
-          }
-          sgMail
+        }
+        sgMail
           .send(msg)
           .then(() => {
             res.json({ message: 'Oferta enviada', estado: 'success' });
 
           })
           .catch((error) => {
-             res.json({ message: 'Error al enviar oferta usuario trade', estado: 'error' })
+            return res.json({ message: 'Error al enviar oferta usuario trade', estado: 'error' })
           })
 
+      } else {
+        res.json({ message: 'Oferta enviada', estado: 'success' });
       }
     } else {
-      let errorMessage = 'Error al enviar oferta 1';
+      let errorMessage = 'Error al enviar oferta message';
       if (responseBot && responseBot.data.message) {
         errorMessage = responseBot.data.message;
       } else if (responseRamses && responseRamses.data.message) {
@@ -465,7 +465,6 @@ router.post('/v1/api/ecu/comprar-bot', verifyToken, async (req, res) => {
       res.json({ message: errorMessage, estado: 'error' });
     }
   } catch (error) {
-    console.log(error)
     res.json({ message: 'Error al enviar oferta ', estado: 'error' })
   }
 
